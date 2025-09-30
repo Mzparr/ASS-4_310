@@ -168,25 +168,43 @@ bool GradeBook::addStudent(){
     }
     Student s;
     //asking user for students first and last name
-    cout << "Please enter students last name: ";
-    cin >> s.lastName;
-    cout << "\n";
+    do {
+        std::cout << "Please enter students last name: ";
+        std::cin  >> s.lastName;
+        std::cout << "\n";
+        if (s.lastName.size() > 20)
+            std::cout << "Last name must be at most 20 characters.\n\n";
+    } while (s.lastName.size() > 20);
 
-    cout << "Please enter students first name: ";
-    cin >> s.firstName;
-    cout << "\n";
+    //name ≤ 20 chars
+    do {
+        std::cout << "Please enter students first name: ";
+        std::cin  >> s.firstName;
+        std::cout << "\n";
+        if (s.firstName.size() > 20)
+            std::cout << "First name must be at most 20 characters.\n\n";
+    } while (s.firstName.size() > 20);
 
     //asking user for student Id
     while(true){
         cout << "Please enter students ID number(between 1 - 9999): ";
         cin >> s.id;
+        cout << "\n";
+
         if (cin.fail() || s.id < 1 || s.id > 9999){
             cout << "Please enter a valid ID between 1 and 9999!\n";
-            cout << "\n";
             clearBuffer();
-        } else {
-            break;
+            continue;
         }
+        bool dup = false;
+        for (int i = 0; i < count; ++i) {
+            if (roster[i].id == s.id) { dup = true; break; }
+        }
+        if (dup) {
+            std::cout << "That ID already exists. Try another.\n\n";
+            continue;
+        }
+        break; // good ID
     }
     roster[count] = s;
     ++count;
