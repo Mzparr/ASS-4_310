@@ -3,6 +3,7 @@
 const int MAX_STUDENTS = 100;
 class GradeBook{
     public:
+        bool isReady() const;
         GradeBook(); //constructor
         void setupGradeBook(); //command S
         /*
@@ -17,7 +18,6 @@ class GradeBook{
             Tests         2          20
             Final exam    1          30
         */
-
 
         bool addStudent(); //command A
         /*
@@ -97,6 +97,7 @@ class GradeBook{
         */
        void printRoster();
        private:
+        bool semesterReady = false;
         int numPrograms;
         int numTests;
         int numFinals;

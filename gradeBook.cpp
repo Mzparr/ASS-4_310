@@ -7,6 +7,11 @@
 using namespace std;
 
 
+
+bool GradeBook::isReady() const {
+    return semesterReady;
+}
+
 //clearing buffer function
 void clearBuffer(){
     cin.clear();
@@ -148,6 +153,7 @@ void GradeBook::setupGradeBook(){
             cout << "Weight for programming assignments: " << programWeight << "%\n";
             cout << "Weight for tests: " << testWeight << "%\n";
             cout << "Weight for final exam: " << finalWeight << "%\n";
+            semesterReady = true;
             break;
         }
     }
