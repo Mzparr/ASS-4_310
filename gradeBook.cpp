@@ -1,7 +1,12 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <algorithm>
+#include <sstream>
+#include <fstream>
 #include <cmath>
+#include <vector>
+#include <cctype>
 #include "gradeBook.h"
 #include "student.h"
 using namespace std;
@@ -17,6 +22,109 @@ void clearBuffer(){
     cin.clear();
     cin.ignore(100, '\n');
 }
+
+void GradeBook::logTrn(const std::string& line) {
+    std::ofstream trn("Grades.trn", std::ios::app);
+    if (trn) trn << line << '\n';
+}
+
+//sort by last, then first
+static bool ByName(const Student& a, const Student& b) {
+    if (a.lastName != b.lastName) return a.lastName < b.lastName;
+    if (a.firstName != b.firstName) return a.firstName < b.firstName;
+    return a.id < b.id;
+}
+
+void GradeBook::sortRosterByName() {
+    std::sort(roster, roster + count, ByName);
+}
+
+
+bool GradeBook::loadFromDat() {
+    ifstream dat("Grades.dat");
+    if (!dat) {
+        cout << "No Grades.dat found — starting fresh.\n";
+        return false;
+    }
+
+    string line;
+
+    //counts
+    if (!getline(dat, line)) { cout << "Grades.dat is empty.\n"; return false; }
+    {
+        stringstream ss(line);
+        char comma;
+        if (!(ss >> numPrograms >> comma >> numTests >> comma >> numFinals)) {
+            cout << "Bad counts line in Grades.dat.\n"; return false;
+        }
+    }
+
+    // weights
+    if (!getline(dat, line)) { cout << "Missing weights line in Grades.dat.\n"; return false; }
+    {
+        stringstream ss(line);
+        char comma;
+        if (!(ss >> programWeight >> comma >> testWeight >> comma >> finalWeight)) {
+            cout << "Bad weights line in Grades.dat.\n"; return false;
+        }
+    }
+
+    // Line 3: student count
+    int declaredCount = 0;
+    if (!getline(dat, line)) { cout << "Missing student count in Grades.dat.\n"; return false; }
+    {
+        stringstream ss(line);
+        if (!(ss >> declaredCount)) { cout << "Bad student count in Grades.dat.\n"; return false; }
+        if (declaredCount < 0) declaredCount = 0;
+    }
+
+    // students
+    const int capacity = static_cast<int>(sizeof(roster) / sizeof(roster[0]));
+    count = 0;
+
+    for (int i = 0; i < declaredCount; ++i) {
+        if (!getline(dat, line)) break;
+        stringstream ss(line);
+
+        Student s; // ctor sets arrays to -1
+
+        if (!getline(ss, s.lastName, ',')) break;
+        if (!getline(ss, s.firstName, ',')) break;
+
+        string tok;
+        if (!getline(ss, tok, ',')) break;
+        s.id = stoi(tok);
+
+        for (int p = 0; p < MAX_PROGRAMS; ++p) {
+            if (!getline(ss, tok, ',')) tok = "-1";
+            s.programGrades[p] = stoi(tok);
+        }
+
+        for (int t = 0; t < MAX_TESTS; ++t) {
+            if (!getline(ss, tok, ',')) tok = "-1";
+            s.testGrades[t] = stoi(tok);
+        }
+
+        if (!getline(ss, tok)) tok = "-1";
+        s.finalExam = stoi(tok);
+
+        if (count < capacity) {
+            roster[count++] = s;
+        } else {
+            cout << "Roster full — extra students in Grades.dat are being ignored.\n";
+            break;
+        }
+    }
+
+    semesterReady = true;
+    cout << "Loaded " << count << " student(s) from Grades.dat\n";
+    logTrn("L: loaded " + to_string(count) + " student(s) from Grades.dat");
+    return true;
+}
+
+
+
+
 //constructor
 GradeBook::GradeBook(){
     numPrograms = 0; //starting with 0 programs
@@ -154,6 +262,14 @@ void GradeBook::setupGradeBook(){
             cout << "Weight for tests: " << testWeight << "%\n";
             cout << "Weight for final exam: " << finalWeight << "%\n";
             semesterReady = true;
+            logTrn(
+            "S: P=" + to_string(numPrograms) +
+            ", T=" + to_string(numTests) +
+            ", F=" + to_string(numFinals) +
+            "; W(P/T/F)=" + to_string(programWeight) + "/" +
+                   to_string(testWeight) + "/" +
+                   to_string(finalWeight)
+);
             break;
         }
     }
@@ -185,7 +301,7 @@ bool GradeBook::addStudent(){
             std::cout << "First name must be at most 20 characters.\n\n";
     } while (s.firstName.size() > 20);
 
-    //asking user for student Id
+    //asking user for student id
     while(true){
         cout << "Please enter students ID number(between 1 - 9999): ";
         cin >> s.id;
@@ -196,11 +312,11 @@ bool GradeBook::addStudent(){
             clearBuffer();
             continue;
         }
-        bool dup = false;
+        bool same_id = false;
         for (int i = 0; i < count; ++i) {
-            if (roster[i].id == s.id) { dup = true; break; }
+            if (roster[i].id == s.id) { same_id = true; break; }
         }
-        if (dup) {
+        if (same_id) {
             std::cout << "That ID already exists. Try another.\n\n";
             continue;
         }
@@ -208,6 +324,8 @@ bool GradeBook::addStudent(){
     }
     roster[count] = s;
     ++count;
+    logTrn("A: " + s.lastName + ", " + s.firstName + " (ID " + std::to_string(s.id) + ")");
+    sortRosterByName();
     return true;
 }
 
@@ -252,4 +370,431 @@ char GradeBook::inputValidation(){
     }
     char upperChoice = toupper(choice);
     return upperChoice;
+}
+
+void GradeBook::showGrades() {
+    // ask for order
+    cout << "Output order? (N = by Name, I = by ID): ";
+    char order;
+    cin >> order;
+    order = static_cast<char>(toupper(static_cast<unsigned char>(order)));
+    cout << "\n";
+
+    // index view don't disturb stored order
+    vector<int> idx(count);
+    for (int i = 0; i < count; ++i) idx[i] = i;
+
+    if (order == 'N') {
+        sort(idx.begin(), idx.end(), [&](int a, int b) {
+            if (roster[a].lastName != roster[b].lastName)
+                return roster[a].lastName < roster[b].lastName;
+            if (roster[a].firstName != roster[b].firstName)
+                return roster[a].firstName < roster[b].firstName;
+            return roster[a].id < roster[b].id;
+        });
+    } else if (order == 'I') {
+        sort(idx.begin(), idx.end(), [&](int a, int b) {
+            return roster[a].id < roster[b].id;
+        });
+    } else {
+        cout << "Unknown choice. Using Name order.\n\n";
+        sort(idx.begin(), idx.end(), [&](int a, int b) {
+            if (roster[a].lastName != roster[b].lastName)
+                return roster[a].lastName < roster[b].lastName;
+            if (roster[a].firstName != roster[b].firstName)
+                return roster[a].firstName < roster[b].firstName;
+            return roster[a].id < roster[b].id;
+        });
+        bool needCompute = false;
+        for (int k : idx) {
+            if (roster[k].programAverage < 0.0 || roster[k].testAverage < 0.0 || roster[k].semesterAverage < 0.0) {
+                needCompute = true; break;
+            }
+        }
+        if (needCompute) {
+            finalGrade();
+        }
+        order = 'N';
+    }
+
+    // write Grades.out
+    ofstream out("Grades.out", ios::trunc);
+    if (!out) {
+        cout << "Could not open Grades.out for writing.\n";
+        return;
+    }
+
+    // header
+    out << "----------------------------- Grade Book Report -----------------------------\n";
+    out << "Programs: " << numPrograms
+        << " | Tests: "   << numTests
+        << " | Finals: "  << numFinals << "\n";
+    out << "Weights (P/T/F): " << programWeight << "% / "
+        << testWeight << "% / "
+        << finalWeight << "%\n";
+    out << "Students: " << count << "\n";
+    out << "Order: " << (order == 'I' ? "Student ID" : "Last, First") << "\n";
+    out << "----------------------------------------------------------------------------\n";
+    out << "Last Name, First Name (ID)\n";
+
+    for (int k : idx) {
+        const Student& s = roster[k];
+
+        if (numFinals == 0) out << "* No final this term\n";
+
+        // Final exam printable value
+        string fstr = "N/A";
+        if (numFinals > 0) {
+            fstr = (s.finalExam == -1 ? "N/A" : to_string(s.finalExam));
+        }
+
+        out << left
+    << setw(20) << "Last Name"
+    << setw(20) << "First Name"
+    << setw(8)  << "ID"
+    << setw(12) << "Prog Avg"
+    << setw(12) << "Test Avg"
+    << setw(8)  << (numFinals > 0 ? "Final" : "Final*")
+    << setw(14) << "Semester Avg"
+    << "\n";
+    }
+
+    out.flush();
+    cout << "Wrote report to Grades.out\n";
+
+    // transaction log
+    logTrn(string("O: report with averages, order=") + (order == 'I' ? "ID" : "NAME")
+       + ", students=" + to_string(count));
+}
+
+void GradeBook::quitProgram() {
+    // Save current gradebook to Grades.dat
+    ofstream dat("Grades.dat", ios::trunc);
+    if (!dat) {
+        cout << "Could not open Grades.dat for writing.\n";
+        return;
+    }
+
+    // Line 1   counts
+    dat << numPrograms << ',' << numTests << ',' << numFinals << '\n';
+    // Line 2: weights
+    dat << programWeight << ',' << testWeight << ',' << finalWeight << '\n';
+    // Line 3: student count
+    dat << count << '\n';
+
+    // Lines 4...   one student per line:
+    // last,first,id, p[0..5], t[0..3], finalExam
+    for (int i = 0; i < count; ++i) {
+        const Student& s = roster[i];
+
+        dat << s.lastName << ',' << s.firstName << ',' << s.id << ',';
+
+        // programs (MAX_PROGRAMS = 6)
+        for (int p = 0; p < MAX_PROGRAMS; ++p) {
+            if (p) dat << ',';
+            dat << s.programGrades[p];
+        }
+
+        dat << ','; // separator between program and test blocks
+
+        // tests (MAX_TESTS = 4)
+        for (int t = 0; t < MAX_TESTS; ++t) {
+            if (t) dat << ',';
+            dat << s.testGrades[t];
+        }
+
+        dat << ',' << s.finalExam << '\n';
+    }
+
+    dat.flush();
+    cout << "Saved " << count << " student(s) to Grades.dat\n";
+
+    // transaction log
+    logTrn("Q: saved " + to_string(count) + " student(s) to Grades.dat");
+}
+
+void GradeBook::programGrades() {
+    if (numPrograms <= 0) {
+        cout << "There are no programming assignments this term.\n";
+        return;
+    }
+    if (count == 0) {
+        cout << "No students in the roster.\n";
+        return;
+    }
+
+    // ask which program and map to 0-based index
+    int userNum = 0;
+    while (true) {
+        cout << "Enter program number (1 to " << numPrograms << "): ";
+        cin >> userNum;
+        if (cin.fail() || userNum < 1 || userNum > numPrograms) {
+            cout << "Please enter a valid number between 1 and " << numPrograms << ".\n\n";
+            clearBuffer();
+        } else break;
+    }
+    int idx = userNum - 1;
+
+    // prevent duplicates
+    bool alreadyEntered = false;
+    for (int i = 0; i < count; ++i) {
+        if (roster[i].programGrades[idx] != -1) { alreadyEntered = true; break; }
+    }
+    if (alreadyEntered) {
+        cout << "Program #" << userNum << " was already recorded. "
+             << "Use C (Change grade) to modify individual students.\n";
+        return;
+    }
+
+    //prompt grades for each student
+    cout << "\nRecording grades for Program #" << userNum << ":\n";
+    for (int i = 0; i < count; ++i) {
+        int g = -1;
+        while (true) {
+            cout << "  " << roster[i].lastName << ", " << roster[i].firstName << " (ID " << roster[i].id << "): ";
+            cin >> g;
+            if (cin.fail() || g < 0 || g > 100) {
+                cout << "    Please enter an integer grade 0..100.\n";
+                clearBuffer();
+            } else break;
+        }
+        roster[i].programGrades[idx] = g;
+    }
+
+    cout << "Recorded Program #" << userNum << " for " << count << " student(s).\n";
+    logTrn("P: program #" + to_string(userNum) + " recorded for " + to_string(count) + " student(s)");
+}
+
+
+
+void GradeBook::testGrades() {
+    if (numTests <= 0) {
+        cout << "There are no tests this term.\n";
+        return;
+    }
+    if (count == 0) {
+        cout << "No students in the roster.\n";
+        return;
+    }
+
+    //choose which test
+    int userNum = 0;
+    while (true) {
+        cout << "Enter test number (1 to " << numTests << "): ";
+        cin >> userNum;
+        if (cin.fail() || userNum < 1 || userNum > numTests) {
+            cout << "Please enter a valid number between 1 and " << numTests << ".\n\n";
+            clearBuffer();
+        } else break;
+    }
+    int idx = userNum - 1;
+
+    // prevent duplicates
+    bool alreadyEntered = false;
+    for (int i = 0; i < count; ++i) {
+        if (roster[i].testGrades[idx] != -1) { alreadyEntered = true; break; }
+    }
+    if (alreadyEntered) {
+        cout << "Test #" << userNum << " was already recorded. "
+             << "Use C (Change grade) to modify individual students.\n";
+        return;
+    }
+
+    // prompt grades for each student
+    cout << "\nRecording grades for Test #" << userNum << ":\n";
+    for (int i = 0; i < count; ++i) {
+        int g = -1;
+        while (true) {
+            cout << "  " << roster[i].lastName << ", " << roster[i].firstName
+                 << " (ID " << roster[i].id << "): ";
+            cin >> g;
+            if (cin.fail() || g < 0 || g > 100) {
+                cout << "    Please enter an integer grade 0..100.\n";
+                clearBuffer();
+            } else break;
+        }
+        roster[i].testGrades[idx] = g;
+    }
+
+    cout << "Recorded Test #" << userNum << " for " << count << " student(s).\n";
+    logTrn("T: test #" + to_string(userNum) + " recorded for " + to_string(count) + " student(s)");
+}
+
+
+void GradeBook::finalTestGrades() {
+    if (numFinals <= 0) {
+        cout << "There is no final exam this term.\n";
+        return;
+    }
+    if (count == 0) {
+        cout << "No students in the roster.\n";
+        return;
+    }
+
+    //prevent duplicates
+    bool alreadyEntered = false;
+    for (int i = 0; i < count; ++i) {
+        if (roster[i].finalExam != -1) { alreadyEntered = true; break; }
+    }
+    if (alreadyEntered) {
+        cout << "Final exam was already recorded. "
+             << "Use C (Change grade) to modify individual students.\n";
+        return;
+    }
+
+    cout << "\nRecording Final Exam grades:\n";
+    for (int i = 0; i < count; ++i) {
+        int g = -1;
+        while (true) {
+            cout << "  " << roster[i].lastName << ", " << roster[i].firstName
+                 << " (ID " << roster[i].id << "): ";
+            cin >> g;
+            if (cin.fail() || g < 0 || g > 100) {
+                cout << "    Please enter an integer grade 0..100.\n";
+                clearBuffer();
+            } else break;
+        }
+        roster[i].finalExam = g;
+    }
+
+    cout << "Recorded Final Exam for " << count << " student(s).\n";
+    logTrn("F: final exam recorded for " + to_string(count) + " student(s)");
+}
+
+
+
+void GradeBook::changeGrade() {
+    if (count == 0) { cout << "No students in the roster.\n"; return; }
+
+    // 1) Which student?
+    int sid = 0;
+    while (true) {
+        cout << "Enter student ID (1 - 9999): ";
+        cin >> sid;
+        if (cin.fail() || sid < 1 || sid > 9999) {
+            cout << "Please enter a valid ID.\n\n";
+            clearBuffer();
+        } else break;
+    }
+
+    int i = -1;  // index into roster
+    for (int k = 0; k < count; ++k) {
+        if (roster[k].id == sid) { i = k; break; }
+    }
+    if (i == -1) { cout << "Student ID not found.\n"; return; }
+
+    // 2) Which grade type?
+    char type;
+    cout << "Change which grade? (P = Program, T = Test, F = Final): ";
+    cin >> type;
+    type = static_cast<char>(toupper(static_cast<unsigned char>(type)));
+
+    // 3) If P/T, which number?
+    int which = -1;     // 1-based from user
+    int idx = -1;       // 0-based index
+    if (type == 'P') {
+        if (numPrograms <= 0) { cout << "There are no programming assignments this term.\n"; return; }
+        while (true) {
+            cout << "Enter program number (1 to " << numPrograms << "): ";
+            cin >> which;
+            if (cin.fail() || which < 1 || which > numPrograms) {
+                cout << "Please enter a valid program number.\n\n";
+                clearBuffer();
+            } else break;
+        }
+        idx = which - 1;
+        // Optional: Show previous value
+        int oldv = roster[i].programGrades[idx];
+        cout << "Current value: " << oldv << " (use 0..100 for new value)\n";
+    }
+    else if (type == 'T') {
+        if (numTests <= 0) { cout << "There are no tests this term.\n"; return; }
+        while (true) {
+            cout << "Enter test number (1 to " << numTests << "): ";
+            cin >> which;
+            if (cin.fail() || which < 1 || which > numTests) {
+                cout << "Please enter a valid test number.\n\n";
+                clearBuffer();
+            } else break;
+        }
+        idx = which - 1;
+        int oldv = roster[i].testGrades[idx];
+        cout << "Current value: " << oldv << " (use 0..100 for new value)\n";
+    }
+    else if (type == 'F') {
+        if (numFinals <= 0) { cout << "There is no final exam this term.\n"; return; }
+        int oldv = roster[i].finalExam;
+        cout << "Current value: " << oldv << " (use 0..100 for new value)\n";
+    }
+    else {
+        cout << "Unknown grade type.\n";
+        return;
+    }
+
+    // 4) New grade
+    int newg = -1;
+    while (true) {
+        cout << "Enter new grade (0..100): ";
+        cin >> newg;
+        if (cin.fail() || newg < 0 || newg > 100) {
+            cout << "Please enter an integer between 0 and 100.\n\n";
+            clearBuffer();
+        } else break;
+    }
+
+    // 5) Apply change
+    if (type == 'P') {
+        roster[i].programGrades[idx] = newg;
+        cout << "Updated Program #" << which << " for " << roster[i].lastName << ", "
+             << roster[i].firstName << " (ID " << sid << ") to " << newg << ".\n";
+        logTrn("C: ID " + to_string(sid) + " P#" + to_string(which) + " -> " + to_string(newg));
+    } else if (type == 'T') {
+        roster[i].testGrades[idx] = newg;
+        cout << "Updated Test #" << which << " for " << roster[i].lastName << ", "
+             << roster[i].firstName << " (ID " << sid << ") to " << newg << ".\n";
+        logTrn("C: ID " + to_string(sid) + " T#" + to_string(which) + " -> " + to_string(newg));
+    } else { // 'F'
+        roster[i].finalExam = newg;
+        cout << "Updated Final Exam for " << roster[i].lastName << ", "
+             << roster[i].firstName << " (ID " << sid << ") to " << newg << ".\n";
+        logTrn("C: ID " + to_string(sid) + " F -> " + to_string(newg));
+    }
+}
+
+
+void GradeBook::finalGrade() {
+    if (count == 0) { cout << "No students in the roster.\n"; return; }
+
+    for (int i = 0; i < count; ++i) {
+        Student& s = roster[i];
+
+        // ---- Program average over the first numPrograms slots
+        double psum = 0.0; int pcnt = 0;
+        for (int p = 0; p < numPrograms; ++p) {
+            int g = s.programGrades[p];
+            if (g != -1) { psum += g; ++pcnt; }
+        }
+        s.programAverage = (pcnt > 0 ? psum / pcnt : 0.0);
+
+        // ---- Test average over the first numTests slots
+        double tsum = 0.0; int tcnt = 0;
+        for (int t = 0; t < numTests; ++t) {
+            int g = s.testGrades[t];
+            if (g != -1) { tsum += g; ++tcnt; }
+        }
+        s.testAverage = (tcnt > 0 ? tsum / tcnt : 0.0);
+
+        // ---- Final exam
+        double fscore = 0.0;
+        if (numFinals > 0 && s.finalExam != -1) fscore = s.finalExam;
+
+        // ---- Weighted semester average
+        s.semesterAverage =
+            (s.programAverage * programWeight +
+             s.testAverage    * testWeight    +
+             fscore           * finalWeight) / 100.0;
+    }
+
+    cout << "Computed averages for " << count << " student(s).\n";
+    logTrn("G: recomputed averages for " + to_string(count) + " student(s)");
 }

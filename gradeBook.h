@@ -5,6 +5,9 @@ class GradeBook{
     public:
         bool isReady() const;
         GradeBook(); //constructor
+
+        bool loadFromDat();   // returns true if loaded successfully
+
         void setupGradeBook(); //command S
         /*
             This will prompt user for 
@@ -98,6 +101,7 @@ class GradeBook{
        void printRoster();
        private:
         bool semesterReady = false;
+        void logTrn(const std::string& line);
         int numPrograms;
         int numTests;
         int numFinals;
@@ -106,5 +110,6 @@ class GradeBook{
         double finalWeight;
         Student roster[MAX_STUDENTS];
         int count;
+        void sortRosterByName();
 
 };

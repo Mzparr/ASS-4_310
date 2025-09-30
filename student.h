@@ -13,6 +13,9 @@ class Student
         Student();
         std::string lastName, firstName;
         int id = 0;
+        double programAverage = -1.0;
+        double testAverage    = -1.0;
+        double semesterAverage= -1.0;
         double programGrades[MAX_PROGRAMS];
         double testGrades[MAX_TESTS];
         double finalExam;

@@ -4,6 +4,9 @@
 
 
 Student::Student(){
+    programAverage = -1.0;
+    testAverage    = -1.0;
+    semesterAverage= -1.0;
     for (int i = 0; i < MAX_PROGRAMS; i++){
         programGrades[i] = -1; //no grades entered
     }
