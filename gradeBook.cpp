@@ -130,13 +130,11 @@ void GradeBook::setupGradeBook(){
         weightSum = programWeight + finalWeight + testWeight;
 
         //checking if weights add up to 100%
-        if (weightSum > 100){ //checking if weight is over 100%
+        if (weightSum > 100.0 + EPS) {
             cout << "Please enter weights again\n";
-            cout << "Reminder that total weight from programming assignments + tests + final cannot exceed 100%\n";
-            cout << "\n";
-        } else if(weightSum < 100){ //checking if weight is under 100%
-            cout << "Please ensure that all weights add up to 100%\n";
-            cout << "\n";
+            cout << "Reminder that total weight from programming assignments + tests + final cannot exceed 100%\n\n";
+        } else if (weightSum < 100.0 - EPS) {
+            cout << "Please ensure that all weights add up to 100%\n\n";
         } else {
             //printing out summary of entries
             /*

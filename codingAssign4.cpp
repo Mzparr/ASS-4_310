@@ -13,12 +13,12 @@ int main(){
     char result;
     GradeBook gb;
     //creating menu for user
-    //gb.gradeBookMenu();
-    //result = gb.inputValidation();
-    //cout << "The result is: " << result << "\n";
+    gb.gradeBookMenu();
+    result = gb.inputValidation();
+    cout << "The result is: " << result << "\n";
     cout << "\n";
-   // cout << "Testing basic numProgram + weight validation\n" ;
-    //gb.setupGradeBook();
+    cout << "Testing basic numProgram + weight validation\n" ;
+    gb.setupGradeBook();
     
     cout << "Now testing addStudent feature\n";
     gb.addStudent();
