@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <string>
+#include <cmath>
 #include "gradeBook.h"
 #include "student.h"
 using namespace std;
@@ -25,14 +26,16 @@ GradeBook::GradeBook(){
 
 //setting up gradebook for the semester
 void GradeBook::setupGradeBook(){
-    int weightSum = 0.0;
+    double weightSum = 0.0;
+    const double EPS = 1e-6;
 
     //prompt user num of programs + validation
     while(true){
+
         cout << "Please enter in the total number of programming assignments (0-6 only): ";
         cin >> numPrograms;
         if(cin.fail() || numPrograms < 0 || numPrograms > MAX_PROGRAMS){
-            cout << "Please enter a number from 1 to 6\n";
+            cout << "Please enter a number from 0 to 6\n";
             cout << "\n";
             clearBuffer();
         } else {
@@ -45,7 +48,7 @@ void GradeBook::setupGradeBook(){
         cout << "Please enter in the total number of tests (0-4 only): ";
         cin >> numTests;
         if(cin.fail() || numTests < 0 || numTests > MAX_TESTS){
-            cout << "Please enter a number from 1 to 4\n";
+            cout << "Please enter a number from 0 to 4\n";
             cout << "\n";
             clearBuffer();
         } else {
