@@ -381,9 +381,12 @@ void GradeBook::showGrades() {
     cin >> order;
     order = static_cast<char>(toupper(static_cast<unsigned char>(order)));
     cout << "\n";
+
+    // index view so we don’t disturb stored order
     vector<int> idx(count);
     for (int i = 0; i < count; ++i) idx[i] = i;
 
+    // sort by chosen order
     if (order == 'N') {
         sort(idx.begin(), idx.end(), [&](int a, int b) {
             if (roster[a].lastName != roster[b].lastName)
@@ -408,25 +411,22 @@ void GradeBook::showGrades() {
         order = 'N';
     }
 
-    // write Grades.out
-
+    // compute averages if any are missing
     bool needCompute = false;
     for (int k : idx) {
         if (roster[k].programAverage < 0.0 ||
             roster[k].testAverage    < 0.0 ||
             roster[k].semesterAverage< 0.0) {
             needCompute = true; break;
-            }
+        }
     }
-    if (needCompute) {
-        finalGrade();    // computes averages for all students
-    }
-    ofstream out("Grades.out", ios::trunc);
-    if (!out) {
-        cout << "Could not open Grades.out for writing.\n";
-        return;
-    }
+    if (needCompute) finalGrade();
 
+    // open report
+    ofstream out("Grades.out", ios::trunc);
+    if (!out) { cout << "Could not open Grades.out for writing.\n"; return; }
+
+    // summary header
     out << "----------------------------- Grade Book Report -----------------------------\n";
     out << "Programs: " << numPrograms
         << " | Tests: "  << numTests
@@ -438,74 +438,67 @@ void GradeBook::showGrades() {
     out << "Students: " << count << "\n";
     out << "----------------------------------------------------------------------------\n";
 
-    out << left;
-
-    // fixed columns first
-    out << setw(20) << "Last Name"
+    // table header
+    out << left
+        << setw(20) << "Last Name"
         << setw(20) << "First Name"
         << setw(8)  << "ID";
-
-    // dynamic Program columns: P1..PnumPrograms
-    for (int p = 1; p <= numPrograms; ++p) {
-        ostringstream col; col << "P" << p;
-        out << setw(6) << col.str();
-    }
-
-    // dynamic Test columns: T1..TnumTests
-    for (int t = 1; t <= numTests; ++t) {
-        ostringstream col; col << "T" << t;
-        out << setw(6) << col.str();
-    }
-
-    // summary columns
+    for (int p = 1; p <= numPrograms; ++p) { ostringstream col; col << "P" << p; out << setw(6) << col.str(); }
+    for (int t = 1; t <= numTests;   ++t) { ostringstream col; col << "T" << t; out << setw(6) << col.str(); }
     out << setw(12) << "Prog Avg"
         << setw(12) << "Test Avg"
         << setw(8)  << (numFinals > 0 ? "Final" : "Final*")
         << setw(14) << "Semester Avg"
         << "\n";
 
+    // rows
     for (int k : idx) {
         const Student& s = roster[k];
 
-        // Final exam display
-        string fstr = "N/A";
-        if (numFinals > 0) fstr = (s.finalExam == -1 ? "N/A" : to_string(s.finalExam));
-
-        // fixed identity columns
         out << left
             << setw(20) << s.lastName
             << setw(20) << s.firstName
             << setw(8)  << s.id;
 
-        // raw Program grades
+        // clear float mode for raw columns, and print P/T as strings
         out.unsetf(ios::floatfield);
-        out << setprecision(0); // raw grades shown as integers
+        out << setprecision(0);
+
         for (int p = 0; p < numPrograms; ++p) {
-            string g = (s.programGrades[p] == -1 ? "NA" : to_string(s.programGrades[p]));
-            out << setw(6) << g;
+            if (s.programGrades[p] == -1)
+                out << setw(6) << "NA";
+            else
+                out << setw(6) << static_cast<int>(s.programGrades[p]);
         }
 
-        // raw Test grades (only first numTests slots matter)
         for (int t = 0; t < numTests; ++t) {
-            string g = (s.testGrades[t] == -1 ? "NA" : to_string(s.testGrades[t]));
-            out << setw(6) << g;
+            if (s.testGrades[t] == -1)
+                out << setw(6) << "NA";
+            else
+                out << setw(6) << static_cast<int>(s.testGrades[t]);
         }
+
+        // as STRING
         out.setf(ios::fixed);
         out << setprecision(1);
-        // averages & final (1 decimal)
+
+        string fstr = "N/A";
+        if (numFinals > 0 && s.finalExam != -1)
+            fstr = to_string(static_cast<int>(s.finalExam));
+
         out << setw(12) << s.programAverage
             << setw(12) << s.testAverage
             << setw(8)  << fstr
             << setw(14) << s.semesterAverage
             << "\n";
-        }
+    }
+
     if (numFinals == 0) out << "* No final this term\n";
     out.flush();
-    cout << "Wrote report to Grades.out\n";
 
-    // transaction log
+    cout << "Wrote report to Grades.out\n";
     logTrn(string("O: report with averages, order=") + (order == 'I' ? "ID" : "NAME")
-       + ", students=" + to_string(count));
+           + ", students=" + to_string(count));
 }
 
 void GradeBook::quitProgram() {
