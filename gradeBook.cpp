@@ -437,7 +437,6 @@ void GradeBook::showGrades() {
         << finalWeight   << "%\n";
     out << "Students: " << count << "\n";
     out << "----------------------------------------------------------------------------\n";
-    if (numFinals == 0) out << "* No final this term\n";
     out << left;
 
     // fixed columns first
@@ -499,7 +498,7 @@ void GradeBook::showGrades() {
             << "\n";
         }
 
-
+    if (numFinals == 0) out << "* No final this term\n";
     out.flush();
     cout << "Wrote report to Grades.out\n";
 

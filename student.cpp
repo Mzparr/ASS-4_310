@@ -1,7 +1,5 @@
 //cpp file for student header, only contains the constructor
 #include "student.h"
-#include <string>
-
 
 Student::Student(){
     programAverage = -1.0;

@@ -1,9 +1,5 @@
 #include <iostream>
 #include <fstream>
-#include <iomanip>
-#include <string>
-#include <cctype>
-#include "student.h"
 #include "gradeBook.h"
 
 using namespace std;
