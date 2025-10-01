@@ -437,6 +437,7 @@ void GradeBook::showGrades() {
         << finalWeight   << "%\n";
     out << "Students: " << count << "\n";
     out << "----------------------------------------------------------------------------\n";
+
     out << left;
 
     // fixed columns first
@@ -477,6 +478,7 @@ void GradeBook::showGrades() {
             << setw(8)  << s.id;
 
         // raw Program grades
+        out.unsetf(ios::floatfield);
         out << setprecision(0); // raw grades shown as integers
         for (int p = 0; p < numPrograms; ++p) {
             string g = (s.programGrades[p] == -1 ? "NA" : to_string(s.programGrades[p]));
@@ -488,16 +490,15 @@ void GradeBook::showGrades() {
             string g = (s.testGrades[t] == -1 ? "NA" : to_string(s.testGrades[t]));
             out << setw(6) << g;
         }
-
+        out.setf(ios::fixed);
+        out << setprecision(1);
         // averages & final (1 decimal)
-        out << fixed << setprecision(1)
-            << setw(12) << s.programAverage
+        out << setw(12) << s.programAverage
             << setw(12) << s.testAverage
             << setw(8)  << fstr
             << setw(14) << s.semesterAverage
             << "\n";
         }
-
     if (numFinals == 0) out << "* No final this term\n";
     out.flush();
     cout << "Wrote report to Grades.out\n";
