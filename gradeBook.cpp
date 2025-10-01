@@ -381,8 +381,6 @@ void GradeBook::showGrades() {
     cin >> order;
     order = static_cast<char>(toupper(static_cast<unsigned char>(order)));
     cout << "\n";
-
-    // index view don't disturb stored order
     vector<int> idx(count);
     for (int i = 0; i < count; ++i) idx[i] = i;
 
@@ -407,20 +405,11 @@ void GradeBook::showGrades() {
                 return roster[a].firstName < roster[b].firstName;
             return roster[a].id < roster[b].id;
         });
-        bool needCompute = false;
-        for (int k : idx) {
-            if (roster[k].programAverage < 0.0 || roster[k].testAverage < 0.0 || roster[k].semesterAverage < 0.0) {
-                needCompute = true; break;
-            }
-        }
-        if (needCompute) {
-            finalGrade();
-        }
         order = 'N';
     }
 
     // write Grades.out
-    ofstream out("Grades.out", ios::trunc);
+
     bool needCompute = false;
     for (int k : idx) {
         if (roster[k].programAverage < 0.0 ||
@@ -432,12 +421,23 @@ void GradeBook::showGrades() {
     if (needCompute) {
         finalGrade();    // computes averages for all students
     }
-
+    ofstream out("Grades.out", ios::trunc);
     if (!out) {
         cout << "Could not open Grades.out for writing.\n";
         return;
     }
 
+    out << "----------------------------- Grade Book Report -----------------------------\n";
+    out << "Programs: " << numPrograms
+        << " | Tests: "  << numTests
+        << " | Finals: " << numFinals << "\n";
+    out << "Weights (P/T/F): "
+        << programWeight << "% / "
+        << testWeight    << "% / "
+        << finalWeight   << "%\n";
+    out << "Students: " << count << "\n";
+    out << "----------------------------------------------------------------------------\n";
+    if (numFinals == 0) out << "* No final this term\n";
     out << left;
 
     // fixed columns first
@@ -477,7 +477,7 @@ void GradeBook::showGrades() {
             << setw(20) << s.firstName
             << setw(8)  << s.id;
 
-        // raw Program grades (only first numPrograms slots matter)
+        // raw Program grades
         out << setprecision(0); // raw grades shown as integers
         for (int p = 0; p < numPrograms; ++p) {
             string g = (s.programGrades[p] == -1 ? "NA" : to_string(s.programGrades[p]));
