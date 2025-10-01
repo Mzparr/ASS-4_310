@@ -472,7 +472,7 @@ void GradeBook::showGrades() {
         if (numFinals > 0) fstr = (s.finalExam == -1 ? "N/A" : to_string(s.finalExam));
 
         // fixed identity columns
-        out << left << fixed << setprecision(1)
+        out << left
             << setw(20) << s.lastName
             << setw(20) << s.firstName
             << setw(8)  << s.id;
